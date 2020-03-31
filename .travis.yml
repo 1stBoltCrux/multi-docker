@@ -1,0 +1,28 @@
+sudo: required
+services:
+  - docker
+
+before_install:
+# the dockerfile we're looking for is in the 
+# client directory in this case - # ./client
+# is our build context
+  - docker build -t tedleary/react-test -f ./client/Dockerfile.dev ./client
+script:
+  - docker run -e CI=true tedleary/react-test npm test -- --coverage
+
+after_success:
+  - docker build -t tedleary/multi-client ./client
+  - docker build -t tedleary/multi-nginx ./nginx
+  - docker build -t tedleary/multi-server ./server
+  - docker built -t tedleary/multi-worker ./worker
+# log in to docker hub - we'll configure our travis-ci environment variables
+# for the docker id and password
+# we echo the password to attach it to concatenate it to the command after
+# the pipe
+  - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_ID" --password-stdin
+# take those images and push them to docker hub - you must
+# be logged in to the docker cli to be associated with docker hub
+  - docker push tedleary/multi-client
+  - docker push tedleary/multi-nginx
+  - docker push tedleary/multi-server
+  - docker push tedleary/multi-worker

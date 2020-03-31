@@ -1,0 +1,63 @@
+version: "3"
+services:
+  postgres:
+    image: "postgres:latest"
+    environment:
+      - POSTGRES_PASSWORD=postgres_password
+  redis:
+    image: "redis:latest"
+  nginx:
+    restart: always
+    build:
+      dockerfile: Dockerfile.dev
+      context: ./nginx
+    # once we compose up all of our containers, this is where we'll be accessing
+    # our app on localhost
+    ports:
+      - "3050:80"
+  api:
+    depends_on:
+      - postgres
+    build:
+      dockerfile: Dockerfile.dev
+      context: ./server
+    volumes:
+      # do not map node_modules, map server directory to app in container
+      # for hot-loading
+      - /app/node_modules
+      - ./server:/app
+    environment:
+      # redis host, url our app should reach out to to contact redis
+      # in our case this is just 'redis' because we're reaching out
+      # to a service of that name - clearly declared above in 'services'
+      - REDIS_HOST=redis
+      # default redis port number
+      - REDIS_PORT=6379
+      # default postgres user
+      - PGUSER=postgres
+      # postgres host url taken from 'services'
+      - PGHOST=postgres
+      # postgres db name
+      - PGDATABASE=postgres
+      # default postgres password
+      - PGPASSWORD=postgres_password
+      # default postgres port
+      - PGPORT=5432
+  client:
+    tty: true
+    build:
+      dockerfile: Dockerfile.dev
+      context: ./client
+    volumes:
+      - /app/node_modules
+      - ./client:/app
+  worker:
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    build:
+      dockerfile: Dockerfile.dev
+      context: ./worker
+    volumes:
+      - /app/node_modules
+      - ./worker:/app
